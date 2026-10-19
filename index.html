@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="ATLAS GLOBAL HUB — dashboard pemantauan global: berita dunia, gempa bumi real-time, dan peta interaktif.">
+<title>ATLAS GLOBAL HUB — Global Intelligence Dashboard</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<header>
+  <div class="brand">ATLAS GLOBAL HUB</div>
+  <div class="live-status"><span id="status-dot" class="dot"></span><span id="status-text">MENGHUBUNGKAN…</span></div>
+  <div class="clock" id="clock">—</div>
+</header>
+<main>
+  <section class="panel" aria-label="Berita global">
+    <h2>GLOBAL NEWS <span class="updated" id="news-updated"></span></h2>
+    <div class="tabs" role="tablist">
+      <button class="tab active" data-feed="world" role="tab">WORLD</button>
+      <button class="tab" data-feed="indonesia" role="tab">INDONESIA</button>
+    </div>
+    <ul id="news-list"></ul>
+    <div class="source-status" id="news-status">Memuat…</div>
+  </section>
+  <section class="panel" aria-label="Monitor gempa bumi">
+    <h2>EARTHQUAKE MONITOR <span class="updated" id="quake-updated"></span></h2>
+    <div class="quake-summary" id="quake-summary"></div>
+    <ul id="quake-list"></ul>
+    <div class="source-status" id="quake-status">Memuat…</div>
+  </section>
+  <section class="panel map-panel" aria-label="Peta global">
+    <h2>GLOBAL MAP</h2>
+    <div id="map"></div>
+  </section>
+</main>
+<footer>
+  Sumber data: USGS Earthquake Hazards Program · BBC News &amp; ANTARA via rss2json · Peta © OpenStreetMap contributors
+</footer>
+<noscript>Dashboard ini membutuhkan JavaScript untuk memuat data.</noscript>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

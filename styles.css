@@ -1,0 +1,132 @@
+:root {
+  --bg: #0a0e14;
+  --panel: #111827;
+  --border: #1f2937;
+  --text: #e6edf3;
+  --muted: #9aa4b2;
+  --accent: #22d3ee;
+  --ok: #22c55e;
+  --warn: #eab308;
+  --err: #ef4444;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 12px 20px;
+  border-bottom: 1px solid var(--border);
+  background: #0d1420;
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+}
+.brand { font-weight: 800; letter-spacing: 2px; color: var(--accent); font-size: 16px; }
+.live-status { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 700; }
+.dot { width: 10px; height: 10px; border-radius: 50%; background: var(--muted); }
+.dot.live { background: var(--ok); box-shadow: 0 0 8px var(--ok); animation: pulse 2s infinite; }
+.dot.degraded { background: var(--warn); box-shadow: 0 0 8px var(--warn); }
+.dot.offline { background: var(--err); }
+@keyframes pulse { 50% { opacity: 0.5; } }
+.clock { margin-left: auto; color: var(--muted); font-size: 13px; font-variant-numeric: tabular-nums; }
+main {
+  flex: 1;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  padding: 12px;
+  max-width: 1400px;
+  width: 100%;
+  margin: 0 auto;
+}
+.panel {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  min-height: 300px;
+}
+.panel h2 {
+  font-size: 14px;
+  letter-spacing: 1.5px;
+  margin-bottom: 10px;
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+}
+.updated { font-size: 11px; color: var(--muted); font-weight: 400; letter-spacing: 0; }
+.map-panel { grid-column: 1 / -1; }
+#map { height: 420px; border-radius: 8px; background: #000; z-index: 1; }
+.map-fallback {
+  height: 100%;
+  min-height: 200px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 24px;
+  color: var(--warn);
+  font-size: 14px;
+  line-height: 1.5;
+}
+.tabs { display: flex; gap: 8px; margin-bottom: 10px; }
+.tab {
+  flex: 1;
+  padding: 8px;
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--muted);
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 700;
+  font-size: 12px;
+  letter-spacing: 1px;
+}
+.tab.active { background: var(--accent); border-color: var(--accent); color: #062026; }
+#news-list, #quake-list {
+  list-style: none;
+  overflow-y: auto;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-height: 380px;
+}
+.news-item { border-bottom: 1px solid var(--border); padding-bottom: 8px; }
+.news-title { color: var(--text); text-decoration: none; font-size: 14px; line-height: 1.4; display: block; }
+.news-title:hover { color: var(--accent); }
+.news-meta { font-size: 11px; color: var(--muted); margin-top: 4px; }
+.quake-item { display: flex; gap: 10px; align-items: flex-start; border-bottom: 1px solid var(--border); padding-bottom: 8px; }
+.mag { font-weight: 800; font-size: 12px; padding: 4px 8px; border-radius: 6px; color: #0a0e14; white-space: nowrap; }
+.quake-place { font-size: 13px; }
+.quake-time { font-size: 11px; color: var(--muted); margin-top: 2px; }
+.empty { color: var(--muted); font-size: 13px; }
+.source-status { margin-top: 10px; font-size: 11px; color: var(--muted); border-top: 1px solid var(--border); padding-top: 8px; }
+.source-status.ok { color: var(--ok); }
+.source-status.stale { color: var(--warn); }
+.source-status.err { color: var(--err); }
+.quake-summary { margin-bottom: 10px; }
+.quake-count { font-size: 22px; font-weight: 800; color: var(--accent); }
+footer {
+  padding: 12px 20px;
+  border-top: 1px solid var(--border);
+  color: var(--muted);
+  font-size: 11px;
+  text-align: center;
+}
+@media (max-width: 800px) {
+  main { grid-template-columns: 1fr; }
+  #map { height: 300px; }
+  header { flex-wrap: wrap; row-gap: 6px; }
+}
