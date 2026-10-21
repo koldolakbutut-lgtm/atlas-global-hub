@@ -199,6 +199,36 @@ main {
 .qd-val { color: var(--text); }
 .qd-link { color: var(--accent); font-size: 12px; font-weight: 700; text-decoration: none; margin-top: 2px; }
 .qd-link:hover { text-decoration: underline; }
+/* ---- Global Map Enhancement (V2.3) ---- */
+.map-legend {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 18px;
+  margin-top: 10px;
+  font-size: 12px;
+  color: var(--muted);
+}
+.map-legend-title { font-size: 11px; font-weight: 700; letter-spacing: 1px; }
+.legend-item { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+.legend-swatch {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  display: inline-block;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+}
+/* swatch colors are exactly the magColor() outputs in app.js */
+.legend-swatch.cyan { background: #22d3ee; }
+.legend-swatch.yellow { background: #eab308; }
+.legend-swatch.orange { background: #f97316; }
+.legend-swatch.red { background: #ef4444; }
+/* Leaflet popup readable on the dark theme (overrides leaflet.css, loaded earlier) */
+.leaflet-popup-content-wrapper { background: var(--panel); color: var(--text); border: 1px solid var(--border); border-radius: 8px; }
+.leaflet-popup-content { color: var(--text); }
+.leaflet-popup-content a { color: var(--accent); font-weight: 700; }
+.leaflet-popup-tip { background: var(--panel); border: 1px solid var(--border); }
+.leaflet-popup-close-button { color: var(--muted) !important; }
 footer {
   padding: 12px 20px;
   border-top: 1px solid var(--border);

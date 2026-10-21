@@ -444,9 +444,21 @@ function renderMapMarkers() {
       weight: 1,
       fillOpacity: 0.7,
     });
-    // popup content is escaped — no raw HTML from remote data
-    m.bindPopup('<b>M' + q.mag.toFixed(1) + '</b><br>' +
-      escapeHtml(q.place) + '<br>' + escapeHtml(fmtTime(q.time)));
+    // popup content is escaped — no raw HTML from remote data.
+    // The USGS link reuses the V2.2 validation helper (validUsgsUrl):
+    // only a validated https earthquake.usgs.gov URL is ever rendered.
+    let popupHtml = '<b>M' + q.mag.toFixed(1) + '</b><br>' +
+      escapeHtml(q.place) + '<br>' + escapeHtml(fmtTime(q.time));
+    const usgsUrl = validUsgsUrl(q.url);
+    if (usgsUrl) {
+      popupHtml += '<br><a href="' + escapeHtml(usgsUrl) +
+        '" target="_blank" rel="noopener noreferrer">Detail resmi USGS</a>';
+    }
+    m.bindPopup(popupHtml);
+    // Clicking a marker selects the same quake by ID (detail panel + list
+    // highlight). Markers are NOT re-rendered here, so the popup Leaflet
+    // opens for this click stays open and undisturbed.
+    m.on('click', function () { selectQuake(q.id, false); });
     m.addTo(state.quakeLayer);
     state.markerById[q.id] = m;
   }
