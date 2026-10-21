@@ -1,7 +1,7 @@
 /* ATLAS GLOBAL HUB — MVP prototype
    Pure frontend: no backend, no API keys, no credentials.
-   Data sources: USGS (earthquakes), rss2json (BBC World + ANTARA news),
-   Leaflet + OpenStreetMap (map).
+   Data sources: USGS (earthquakes), rss2json (BBC World, ANTARA,
+   BBC Technology, BBC Science & Environment news), Leaflet + OpenStreetMap (map).
 */
 'use strict';
 
@@ -12,6 +12,10 @@ const CONFIG = {
         encodeURIComponent('https://feeds.bbci.co.uk/news/world/rss.xml'),
       indonesia: 'https://api.rss2json.com/v1/api.json?rss_url=' +
         encodeURIComponent('https://www.antaranews.com/rss/terkini.xml'),
+      technology: 'https://api.rss2json.com/v1/api.json?rss_url=' +
+        encodeURIComponent('https://feeds.bbci.co.uk/news/technology/rss.xml'),
+      science: 'https://api.rss2json.com/v1/api.json?rss_url=' +
+        encodeURIComponent('https://feeds.bbci.co.uk/news/science_and_environment/rss.xml'),
     },
     refreshMs: 5 * 60 * 1000,
     maxItems: 10,
@@ -26,9 +30,9 @@ const CONFIG = {
 
 const state = {
   news: {
-    items: { world: [], indonesia: [] },
-    lastOk: { world: 0, indonesia: 0 },
-    error: { world: null, indonesia: null },
+    items: { world: [], indonesia: [], technology: [], science: [] },
+    lastOk: { world: 0, indonesia: 0, technology: 0, science: 0 },
+    error: { world: null, indonesia: null, technology: null, science: null },
   },
   quakes: { list: [], lastOk: 0, error: null },
   quakeFilter: { minMag: 0, query: '' },
@@ -94,8 +98,15 @@ async function fetchJson(url, timeoutMs) {
 
 /* ---------------- news ---------------- */
 
+const SOURCE_LABELS = {
+  world: 'BBC World via rss2json',
+  indonesia: 'ANTARA via rss2json',
+  technology: 'BBC Technology via rss2json',
+  science: 'BBC Science & Environment via rss2json',
+};
+
 function sourceLabel(k) {
-  return k === 'world' ? 'BBC World via rss2json' : 'ANTARA via rss2json';
+  return SOURCE_LABELS[k] || (k + ' via rss2json');
 }
 
 async function loadNews(feedKey) {
@@ -612,13 +623,16 @@ function init() {
   renderNews();
   renderQuakes();
   renderOverview();
-  poll(function () { refreshNews('world'); }, CONFIG.news.refreshMs);
-  poll(function () { refreshNews('indonesia'); }, CONFIG.news.refreshMs);
+  // One poller per configured feed: a full refresh cycle is exactly one
+  // request per feed (4 news) + one quake request — no feed is fetched twice.
+  const feedKeys = Object.keys(CONFIG.news.feeds);
+  for (const k of feedKeys) {
+    poll(function () { refreshNews(k); }, CONFIG.news.refreshMs);
+  }
   poll(refreshQuakes, CONFIG.quake.refreshMs);
   document.addEventListener('visibilitychange', function () {
     if (!document.hidden) {
-      refreshNews('world');
-      refreshNews('indonesia');
+      for (const k of feedKeys) refreshNews(k);
       refreshQuakes();
     }
   });

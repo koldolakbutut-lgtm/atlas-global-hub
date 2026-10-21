@@ -236,6 +236,9 @@ footer {
   font-size: 11px;
   text-align: center;
 }
+/* ---- Global News Categories (V2.4) ---- */
+.tabs { flex-wrap: wrap; }
+.tab { min-height: 38px; }
 @media (max-width: 800px) {
   main { grid-template-columns: 1fr; }
   #map { height: 300px; }
@@ -244,4 +247,6 @@ footer {
   .overview-sources { flex-direction: column; gap: 8px; }
   .quake-controls { flex-direction: column; align-items: stretch; }
   .quake-controls select, .quake-controls input, #quake-reset { width: 100%; }
+  .tabs { gap: 6px; }
+  .tab { font-size: 11px; letter-spacing: 0.5px; padding: 8px 4px; flex: 1 1 40%; }
 }
