@@ -2,6 +2,9 @@
    Pure frontend: no backend, no API keys, no credentials.
    Data sources: USGS (earthquakes), rss2json (BBC World, ANTARA,
    BBC Technology, BBC Science & Environment news), Leaflet + OpenStreetMap (map).
+   V2.5 AI & Technology Radar adds rss2json feeds for Hugging Face Blog,
+   Google AI Blog and MIT News AI; its TECHNOLOGY tab reuses the V2.4 news
+   technology state — BBC Technology is fetched exactly once.
 */
 'use strict';
 
@@ -21,6 +24,19 @@ const CONFIG = {
     maxItems: 10,
     timeoutMs: 15000,
   },
+  radar: {
+    feeds: {
+      models: 'https://api.rss2json.com/v1/api.json?rss_url=' +
+        encodeURIComponent('https://huggingface.co/blog/feed.xml'),
+      tools: 'https://api.rss2json.com/v1/api.json?rss_url=' +
+        encodeURIComponent('https://blog.google/innovation-and-ai/technology/ai/rss/'),
+      research: 'https://api.rss2json.com/v1/api.json?rss_url=' +
+        encodeURIComponent('https://news.mit.edu/rss/topic/artificial-intelligence2'),
+    },
+    refreshMs: 5 * 60 * 1000,
+    maxItems: 10,
+    timeoutMs: 15000,
+  },
   quake: {
     url: 'https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_hour.geojson',
     refreshMs: 60 * 1000,
@@ -34,11 +50,17 @@ const state = {
     lastOk: { world: 0, indonesia: 0, technology: 0, science: 0 },
     error: { world: null, indonesia: null, technology: null, science: null },
   },
+  radar: {
+    items: { models: [], tools: [], research: [] },
+    lastOk: { models: 0, tools: 0, research: 0 },
+    error: { models: null, tools: null, research: null },
+  },
   quakes: { list: [], lastOk: 0, error: null },
   quakeFilter: { minMag: 0, query: '' },
   selectedQuakeId: null,
   markerById: {},
   activeTab: 'world',
+  activeRadarTab: 'models',
   map: null,
   quakeLayer: null,
 };
@@ -109,19 +131,19 @@ function sourceLabel(k) {
   return SOURCE_LABELS[k] || (k + ' via rss2json');
 }
 
-async function loadNews(feedKey) {
-  const data = await fetchJson(CONFIG.news.feeds[feedKey], CONFIG.news.timeoutMs);
-  if (!data || data.status !== 'ok' || !Array.isArray(data.items)) {
-    throw new Error('respons tidak valid');
-  }
-  const feedName = (data.feed && data.feed.title) ? String(data.feed.title) : feedKey;
+/* Parse an rss2json payload into validated items. Shared by the news
+   panel and the AI & Technology Radar so the security/validation rules
+   (https-only links, dedup, title required, maxItems cap) can never drift
+   between the two: only https: article URLs survive — javascript:, data:,
+   http: etc. are rejected. Identical to the original news parser. */
+function parseFeedItems(data, maxItems) {
+  const feedName = (data.feed && data.feed.title) ? String(data.feed.title) : '';
   const seen = new Set();
   const items = [];
   for (const it of data.items) {
     const rawUrl = it && it.link ? String(it.link) : '';
     const title = it && it.title ? String(it.title).trim() : '';
     if (!title) continue;
-    // security: only allow https: article URLs — reject javascript:, data:, etc.
     let parsed;
     try { parsed = new URL(rawUrl); } catch (e) { continue; }
     if (parsed.protocol !== 'https:') continue;
@@ -129,8 +151,22 @@ async function loadNews(feedKey) {
     if (seen.has(url)) continue; // dedup by normalized URL
     seen.add(url);
     items.push({ title: title, url: rawUrl, date: it.pubDate || null, source: feedName });
-    if (items.length >= CONFIG.news.maxItems) break;
+    if (items.length >= maxItems) break;
   }
+  return items;
+}
+
+async function fetchFeedItems(url, timeoutMs, maxItems) {
+  const data = await fetchJson(url, timeoutMs);
+  if (!data || data.status !== 'ok' || !Array.isArray(data.items)) {
+    throw new Error('respons tidak valid');
+  }
+  return parseFeedItems(data, maxItems);
+}
+
+async function loadNews(feedKey) {
+  const items = await fetchFeedItems(
+    CONFIG.news.feeds[feedKey], CONFIG.news.timeoutMs, CONFIG.news.maxItems);
   if (!items.length) throw new Error('tidak ada item berita');
   return items;
 }
@@ -156,26 +192,36 @@ function renderNews() {
   }
 }
 
-function renderNewsStatus() {
-  const k = state.activeTab;
-  const upd = document.getElementById('news-updated');
-  const st = document.getElementById('news-status');
-  if (state.news.lastOk[k]) {
-    upd.textContent = 'diperbarui ' + fmtClock(state.news.lastOk[k]);
-    if (state.news.error[k]) {
-      st.textContent = 'Sumber: ' + sourceLabel(k) + ' · DATA TERAKHIR ' +
-        fmtClock(state.news.lastOk[k]) + ' (upaya terakhir gagal: ' + state.news.error[k] + ')';
-      st.className = 'source-status stale';
+/* Shared per-source status presenter (LIVE / STALE / ERROR semantics).
+   Used by BOTH the news panel and the Radar panel: the Radar TECHNOLOGY
+   tab passes the news technology state through this exact function, so
+   its health status can never disagree with the news panel's. */
+function presentSourceStatus(updEl, stEl, label, lastOk, error) {
+  if (!updEl || !stEl) return;
+  if (lastOk) {
+    updEl.textContent = 'diperbarui ' + fmtClock(lastOk);
+    if (error) {
+      stEl.textContent = 'Sumber: ' + label + ' · DATA TERAKHIR ' +
+        fmtClock(lastOk) + ' (upaya terakhir gagal: ' + error + ')';
+      stEl.className = 'source-status stale';
     } else {
-      st.textContent = 'Sumber: ' + sourceLabel(k) + ' · OK';
-      st.className = 'source-status ok';
+      stEl.textContent = 'Sumber: ' + label + ' · OK';
+      stEl.className = 'source-status ok';
     }
   } else {
-    upd.textContent = 'belum ada data';
-    st.textContent = 'Sumber: ' + sourceLabel(k) + ' · GAGAL (' +
-      (state.news.error[k] || 'memuat…') + ')';
-    st.className = 'source-status err';
+    updEl.textContent = 'belum ada data';
+    stEl.textContent = 'Sumber: ' + label + ' · GAGAL (' +
+      (error || 'memuat…') + ')';
+    stEl.className = 'source-status err';
   }
+}
+
+function renderNewsStatus() {
+  const k = state.activeTab;
+  presentSourceStatus(
+    document.getElementById('news-updated'),
+    document.getElementById('news-status'),
+    sourceLabel(k), state.news.lastOk[k], state.news.error[k]);
   renderHeaderStatus();
 }
 
@@ -192,6 +238,105 @@ async function refreshNews(feedKey) {
   if (feedKey === state.activeTab) renderNews();
   renderNewsStatus();
   renderOverview();
+  renderRadar(); // V2.5: the Radar TECHNOLOGY tab mirrors this same state
+}
+
+/* ---------------- AI & Technology Radar (V2.5) ----------------
+   Three NEW sources (AI MODELS / AI TOOLS / AI RESEARCH) follow the exact
+   news pattern: per-source items/lastOk/error, https-only validated
+   parsing (shared parseFeedItems), last-valid-data retention, and the
+   shared status presenter (presentSourceStatus).
+   The fourth tab, TECHNOLOGY, has NO feed of its own: it renders
+   state.news.items.technology and reads its health from
+   state.news.lastOk/error.technology — one BBC Technology fetch, one
+   refresh cycle, one health status, mirrored exactly here. */
+
+const RADAR_SOURCE_LABELS = {
+  models: 'Hugging Face Blog via rss2json',
+  tools: 'Google AI Blog via rss2json',
+  research: 'MIT News via rss2json',
+  technology: 'BBC Technology via rss2json',
+};
+
+function radarSourceLabel(k) {
+  return RADAR_SOURCE_LABELS[k] || (k + ' via rss2json');
+}
+
+function radarItems(k) {
+  return k === 'technology' ? state.news.items.technology : state.radar.items[k];
+}
+function radarLastOk(k) {
+  return k === 'technology' ? state.news.lastOk.technology : state.radar.lastOk[k];
+}
+function radarError(k) {
+  return k === 'technology' ? state.news.error.technology : state.radar.error[k];
+}
+
+async function loadRadar(feedKey) {
+  const items = await fetchFeedItems(
+    CONFIG.radar.feeds[feedKey], CONFIG.radar.timeoutMs, CONFIG.radar.maxItems);
+  if (!items.length) throw new Error('tidak ada item radar');
+  return items;
+}
+
+function renderRadarList(listEl, items, emptyText) {
+  listEl.replaceChildren();
+  if (!items.length) {
+    listEl.appendChild(el('li', 'empty', emptyText));
+    return;
+  }
+  for (const it of items) {
+    const li = el('li', 'news-item');
+    const a = el('a', 'news-title');
+    a.textContent = it.title;
+    a.href = it.url;
+    a.target = '_blank';
+    a.rel = 'noopener noreferrer';
+    li.appendChild(a);
+    li.appendChild(el('div', 'news-meta', it.source + ' · ' + fmtTime(it.date)));
+    listEl.appendChild(li);
+  }
+}
+
+function renderRadarStatus() {
+  const k = state.activeRadarTab;
+  presentSourceStatus(
+    document.getElementById('radar-updated'),
+    document.getElementById('radar-status'),
+    radarSourceLabel(k), radarLastOk(k), radarError(k));
+}
+
+function renderRadar() {
+  const list = document.getElementById('radar-list');
+  if (list) {
+    renderRadarList(list, radarItems(state.activeRadarTab), 'Belum ada data radar.');
+  }
+  renderRadarStatus();
+}
+
+async function refreshRadar(feedKey) {
+  try {
+    const items = await loadRadar(feedKey);
+    state.radar.items[feedKey] = items;
+    state.radar.lastOk[feedKey] = Date.now();
+    state.radar.error[feedKey] = null;
+  } catch (err) {
+    // keep last valid data; record error honestly
+    state.radar.error[feedKey] = (err && err.message) || 'gagal memuat';
+  }
+  renderRadar();
+}
+
+function initRadarTabs() {
+  const btns = document.querySelectorAll('.radar-tab');
+  btns.forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      btns.forEach(function (b) { b.classList.remove('active'); });
+      btn.classList.add('active');
+      state.activeRadarTab = btn.dataset.rfeed;
+      renderRadar();
+    });
+  });
 }
 
 /* ---------------- earthquakes ---------------- */
@@ -565,7 +710,7 @@ function startClock() {
 }
 
 function initTabs() {
-  const btns = document.querySelectorAll('.tab');
+  const btns = document.querySelectorAll('.tab[data-feed]');
   btns.forEach(function (btn) {
     btn.addEventListener('click', function () {
       btns.forEach(function (b) { b.classList.remove('active'); });
@@ -619,8 +764,10 @@ function init() {
   initMap();
   startClock();
   initTabs();
+  initRadarTabs();
   initQuakeControls();
   renderNews();
+  renderRadar();
   renderQuakes();
   renderOverview();
   // One poller per configured feed: a full refresh cycle is exactly one
@@ -629,10 +776,18 @@ function init() {
   for (const k of feedKeys) {
     poll(function () { refreshNews(k); }, CONFIG.news.refreshMs);
   }
+  // V2.5 Radar feeds join the SAME polling pattern (5-minute refresh).
+  // BBC Technology is NOT polled again here — the Radar TECHNOLOGY tab
+  // mirrors the news technology state fed by the poller above.
+  const radarKeys = Object.keys(CONFIG.radar.feeds);
+  for (const k of radarKeys) {
+    poll(function () { refreshRadar(k); }, CONFIG.radar.refreshMs);
+  }
   poll(refreshQuakes, CONFIG.quake.refreshMs);
   document.addEventListener('visibilitychange', function () {
     if (!document.hidden) {
       for (const k of feedKeys) refreshNews(k);
+      for (const k of radarKeys) refreshRadar(k);
       refreshQuakes();
     }
   });

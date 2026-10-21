@@ -94,7 +94,7 @@ main {
   letter-spacing: 1px;
 }
 .tab.active { background: var(--accent); border-color: var(--accent); color: #062026; }
-#news-list, #quake-list {
+#news-list, #radar-list, #quake-list {
   list-style: none;
   overflow-y: auto;
   flex: 1;
@@ -239,6 +239,10 @@ footer {
 /* ---- Global News Categories (V2.4) ---- */
 .tabs { flex-wrap: wrap; }
 .tab { min-height: 38px; }
+/* ---- AI & Technology Radar (V2.5) ---- */
+/* Radar panel sits beside the news panel in the existing 2-col grid and
+   reuses the news tabs/list styles verbatim — no separate look. */
+.radar-panel { min-height: 300px; }
 @media (max-width: 800px) {
   main { grid-template-columns: 1fr; }
   #map { height: 300px; }
