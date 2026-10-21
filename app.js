@@ -177,6 +177,7 @@ async function refreshNews(feedKey) {
   }
   if (feedKey === state.activeTab) renderNews();
   renderNewsStatus();
+  renderOverview();
 }
 
 /* ---------------- earthquakes ---------------- */
@@ -267,6 +268,7 @@ async function refreshQuakes() {
   }
   renderQuakes();
   renderMapMarkers();
+  renderOverview();
 }
 
 /* ---------------- map ---------------- */
@@ -338,6 +340,58 @@ function renderHeaderStatus() {
   }
 }
 
+/* ---------------- global overview (V2.1) ----------------
+   Purely additive: every number and status below is derived from the
+   state the MVP fetchers already maintain. No new network requests.
+   An empty-but-successful quake feed is LIVE with count 0, not an error. */
+
+function sourceState(lastOk, error) {
+  if (lastOk) return error ? 'stale' : 'live';
+  if (error) return 'error';
+  return 'loading';
+}
+
+function setOverviewChip(id, st) {
+  const chip = document.getElementById(id);
+  if (!chip) return;
+  chip.className = 'chip ' + st;
+  chip.textContent =
+    st === 'live' ? 'LIVE' :
+    st === 'stale' ? 'STALE' :
+    st === 'error' ? 'ERROR' : 'MEMUAT';
+}
+
+function renderOverview() {
+  // Isolated on purpose: an overview bug must never stop the MVP panels.
+  try {
+    const setText = function (id, txt) {
+      const n = document.getElementById(id);
+      if (n) n.textContent = txt;
+    };
+    const qs = state.quakes.list;
+    setText('ov-quakes', String(qs.length));
+    let maxMag = null;
+    for (const q of qs) {
+      if (maxMag === null || q.mag > maxMag) maxMag = q.mag;
+    }
+    setText('ov-maxmag', maxMag === null ? '—' : 'M' + maxMag.toFixed(1));
+    setText('ov-bbc', String(state.news.items.world.length));
+    setText('ov-antara', String(state.news.items.indonesia.length));
+    const feeds = [
+      { key: 'world', chip: 'ov-status-bbc', upd: 'ov-updated-bbc' },
+      { key: 'indonesia', chip: 'ov-status-antara', upd: 'ov-updated-antara' },
+    ];
+    for (const f of feeds) {
+      setOverviewChip(f.chip, sourceState(state.news.lastOk[f.key], state.news.error[f.key]));
+      setText(f.upd, state.news.lastOk[f.key]
+        ? 'diperbarui ' + fmtClock(state.news.lastOk[f.key]) : '');
+    }
+    setOverviewChip('ov-status-usgs', sourceState(state.quakes.lastOk, state.quakes.error));
+    setText('ov-updated-usgs', state.quakes.lastOk
+      ? 'diperbarui ' + fmtClock(state.quakes.lastOk) : '');
+  } catch (e) { /* overview failure stays inside the overview */ }
+}
+
 /* ---------------- clock, tabs, polling ---------------- */
 
 function startClock() {
@@ -380,6 +434,7 @@ function init() {
   initTabs();
   renderNews();
   renderQuakes();
+  renderOverview();
   poll(function () { refreshNews('world'); }, CONFIG.news.refreshMs);
   poll(function () { refreshNews('indonesia'); }, CONFIG.news.refreshMs);
   poll(refreshQuakes, CONFIG.quake.refreshMs);

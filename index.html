@@ -15,6 +15,48 @@
   <div class="clock" id="clock">—</div>
 </header>
 <main>
+  <section class="panel overview-panel" aria-label="Ringkasan global">
+    <h2>GLOBAL OVERVIEW</h2>
+    <div class="overview-grid">
+      <div class="stat-card">
+        <div class="stat-value" id="ov-quakes">—</div>
+        <div class="stat-label">EARTHQUAKES</div>
+        <div class="stat-sub">gempa pada feed USGS 1 jam terakhir</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value" id="ov-maxmag">—</div>
+        <div class="stat-label">MAX MAGNITUDE</div>
+        <div class="stat-sub">magnitudo terbesar pada feed saat ini</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value" id="ov-bbc">—</div>
+        <div class="stat-label">BBC WORLD</div>
+        <div class="stat-sub">headline dimuat</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value" id="ov-antara">—</div>
+        <div class="stat-label">ANTARA INDONESIA</div>
+        <div class="stat-sub">headline dimuat</div>
+      </div>
+    </div>
+    <div class="overview-sources">
+      <div class="ov-source">
+        <span class="ov-source-name">BBC World</span>
+        <span class="chip loading" id="ov-status-bbc">MEMUAT</span>
+        <span class="ov-updated" id="ov-updated-bbc"></span>
+      </div>
+      <div class="ov-source">
+        <span class="ov-source-name">ANTARA</span>
+        <span class="chip loading" id="ov-status-antara">MEMUAT</span>
+        <span class="ov-updated" id="ov-updated-antara"></span>
+      </div>
+      <div class="ov-source">
+        <span class="ov-source-name">USGS</span>
+        <span class="chip loading" id="ov-status-usgs">MEMUAT</span>
+        <span class="ov-updated" id="ov-updated-usgs"></span>
+      </div>
+    </div>
+  </section>
   <section class="panel" aria-label="Berita global">
     <h2>GLOBAL NEWS <span class="updated" id="news-updated"></span></h2>
     <div class="tabs" role="tablist">
