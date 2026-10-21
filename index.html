@@ -69,7 +69,26 @@
   <section class="panel" aria-label="Monitor gempa bumi">
     <h2>EARTHQUAKE MONITOR <span class="updated" id="quake-updated"></span></h2>
     <div class="quake-summary" id="quake-summary"></div>
+    <div class="quake-controls">
+      <label class="qc-field">
+        <span class="qc-label">MAGNITUDO MIN.</span>
+        <select id="quake-minmag">
+          <option value="0">Semua</option>
+          <option value="3">≥3</option>
+          <option value="4">≥4</option>
+          <option value="5">≥5</option>
+          <option value="6">≥6</option>
+        </select>
+      </label>
+      <label class="qc-field qc-grow">
+        <span class="qc-label">CARI LOKASI</span>
+        <input type="text" id="quake-search" placeholder="mis. California" autocomplete="off">
+      </label>
+      <button type="button" id="quake-reset">RESET</button>
+    </div>
+    <div class="quake-result-count" id="quake-result-count" hidden></div>
     <ul id="quake-list"></ul>
+    <div class="quake-detail" id="quake-detail" hidden></div>
     <div class="source-status" id="quake-status">Memuat…</div>
   </section>
   <section class="panel map-panel" aria-label="Peta global">

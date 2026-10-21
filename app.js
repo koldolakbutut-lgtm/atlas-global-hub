@@ -31,6 +31,9 @@ const state = {
     error: { world: null, indonesia: null },
   },
   quakes: { list: [], lastOk: 0, error: null },
+  quakeFilter: { minMag: 0, query: '' },
+  selectedQuakeId: null,
+  markerById: {},
   activeTab: 'world',
   map: null,
   quakeLayer: null,
@@ -208,25 +211,147 @@ async function loadQuakes() {
       time: p.time || 0,
       lat: lat,
       lng: lng,
+      url: p.url != null ? String(p.url) : null,
+      depth: typeof g.coordinates[2] === 'number' ? g.coordinates[2] : null,
     });
   }
   out.sort(function (a, b) { return b.time - a.time; });
   return out;
 }
 
+/* ---- Earthquake Intelligence (V2.2) ----
+   state.quakes.list is ALWAYS the raw feed; filtering derives a view
+   from it and never mutates it, so Global Overview keeps raw numbers. */
+
+function filterActive() {
+  return state.quakeFilter.minMag > 0 || state.quakeFilter.query.trim() !== '';
+}
+
+function visibleQuakes() {
+  const minMag = state.quakeFilter.minMag;
+  const q = state.quakeFilter.query.trim().toLowerCase();
+  return state.quakes.list.filter(function (item) {
+    if (item.mag < minMag) return false;
+    if (q && item.place.toLowerCase().indexOf(q) === -1) return false;
+    return true;
+  });
+}
+
+function findQuake(id) {
+  if (id == null) return null;
+  for (const q of state.quakes.list) {
+    if (q.id === id) return q;
+  }
+  return null;
+}
+
+function validUsgsUrl(u) {
+  if (!u) return null;
+  try {
+    const x = new URL(u);
+    if (x.protocol !== 'https:') return null;
+    if (x.hostname !== 'earthquake.usgs.gov') return null;
+    return x.toString();
+  } catch (e) { return null; }
+}
+
+function renderDetail() {
+  const box = document.getElementById('quake-detail');
+  if (!box) return;
+  const q = findQuake(state.selectedQuakeId);
+  if (!q) {
+    box.hidden = true;
+    box.replaceChildren();
+    return;
+  }
+  box.hidden = false;
+  box.replaceChildren();
+  const head = el('div', 'qd-head');
+  const badge = el('span', 'mag', 'M' + q.mag.toFixed(1));
+  badge.style.background = magColor(q.mag);
+  head.appendChild(badge);
+  head.appendChild(el('span', 'qd-place', q.place));
+  box.appendChild(head);
+  const rows = [
+    ['Magnitudo', 'M' + q.mag.toFixed(1)],
+    ['Lokasi', q.place],
+    ['Waktu', fmtTime(q.time)],
+    ['Koordinat', q.lat.toFixed(3) + ', ' + q.lng.toFixed(3)],
+    ['Kedalaman', typeof q.depth === 'number' ? String(q.depth) + ' km' : 'tidak tersedia'],
+  ];
+  for (const pair of rows) {
+    const row = el('div', 'qd-row');
+    row.appendChild(el('span', 'qd-key', pair[0]));
+    row.appendChild(el('span', 'qd-val', pair[1]));
+    box.appendChild(row);
+  }
+  const url = validUsgsUrl(q.url);
+  if (url) {
+    const a = el('a', 'qd-link', 'Detail resmi USGS');
+    a.href = url;
+    a.target = '_blank';
+    a.rel = 'noopener noreferrer';
+    box.appendChild(a);
+  }
+}
+
+function refreshSelectionClasses() {
+  const items = document.querySelectorAll('#quake-list .quake-item');
+  items.forEach(function (li) {
+    li.classList.toggle('selected', li.dataset.quakeId === state.selectedQuakeId);
+  });
+}
+
+function centerMapOnQuake(id) {
+  // Map trouble must never disturb the panel — fully isolated.
+  try {
+    if (!state.map) return;
+    const q = findQuake(id);
+    const marker = state.markerById ? state.markerById[id] : null;
+    if (!q || !marker) return;
+    state.map.setView([q.lat, q.lng], Math.max(state.map.getZoom(), 5));
+    marker.openPopup();
+  } catch (e) { /* map failure stays inside the map */ }
+}
+
+function selectQuake(id, center) {
+  state.selectedQuakeId = id;
+  refreshSelectionClasses();
+  renderDetail();
+  if (center) centerMapOnQuake(id);
+}
+
 function renderQuakes() {
   const list = document.getElementById('quake-list');
   list.replaceChildren();
-  const qs = state.quakes.list;
+  const raw = state.quakes.list;
+  const vis = visibleQuakes();
+  const active = filterActive();
   const sum = document.getElementById('quake-summary');
   sum.replaceChildren();
-  sum.appendChild(el('span', 'quake-count', qs.length + ' gempa / 1 jam terakhir'));
-  if (!qs.length) {
+  sum.appendChild(el('span', 'quake-count', raw.length + ' gempa / 1 jam terakhir'));
+  const rc = document.getElementById('quake-result-count');
+  if (rc) {
+    if (active) {
+      rc.hidden = false;
+      rc.textContent = 'Menampilkan ' + vis.length + ' dari ' + raw.length + ' gempa';
+    } else {
+      rc.hidden = true;
+      rc.textContent = '';
+    }
+  }
+  if (!raw.length) {
     list.appendChild(el('li', 'empty', 'Belum ada data gempa.'));
+  } else if (!vis.length) {
+    list.appendChild(el('li', 'empty', 'Tidak ada gempa yang cocok dengan filter'));
   } else {
-    const shown = qs.slice(0, 20);
+    // MVP behaviour kept: the 20-item cap applies only with no filter active,
+    // so a filtered list stays exactly in sync with the map markers.
+    const shown = active ? vis : vis.slice(0, 20);
     for (const q of shown) {
       const li = el('li', 'quake-item');
+      li.dataset.quakeId = q.id;
+      if (q.id === state.selectedQuakeId) li.classList.add('selected');
       const badge = el('span', 'mag', 'M' + q.mag.toFixed(1));
       badge.style.background = magColor(q.mag);
       li.appendChild(badge);
@@ -234,6 +359,7 @@ function renderQuakes() {
       wrap.appendChild(el('div', 'quake-place', q.place));
       wrap.appendChild(el('div', 'quake-time', fmtTime(q.time)));
       li.appendChild(wrap);
+      li.addEventListener('click', function () { selectQuake(q.id, true); });
       list.appendChild(li);
     }
   }
@@ -255,6 +381,7 @@ function renderQuakes() {
     st.className = 'source-status err';
   }
   renderHeaderStatus();
+  renderDetail();
 }
 
 async function refreshQuakes() {
@@ -265,6 +392,10 @@ async function refreshQuakes() {
     state.quakes.error = null;
   } catch (err) {
     state.quakes.error = (err && err.message) || 'gagal memuat';
+  }
+  // A selected quake that left the feed clears the detail panel.
+  if (state.selectedQuakeId != null && !findQuake(state.selectedQuakeId)) {
+    state.selectedQuakeId = null;
   }
   renderQuakes();
   renderMapMarkers();
@@ -305,7 +436,8 @@ function initMap() {
 function renderMapMarkers() {
   if (!state.quakeLayer) return;
   state.quakeLayer.clearLayers(); // no duplicate markers on update
-  for (const q of state.quakes.list) {
+  state.markerById = {};
+  for (const q of visibleQuakes()) {
     const m = L.circleMarker([q.lat, q.lng], {
       radius: 4 + q.mag * 2,
       color: magColor(q.mag),
@@ -316,6 +448,7 @@ function renderMapMarkers() {
     m.bindPopup('<b>M' + q.mag.toFixed(1) + '</b><br>' +
       escapeHtml(q.place) + '<br>' + escapeHtml(fmtTime(q.time)));
     m.addTo(state.quakeLayer);
+    state.markerById[q.id] = m;
   }
 }
 
@@ -421,6 +554,37 @@ function initTabs() {
   });
 }
 
+function initQuakeControls() {
+  const sel = document.getElementById('quake-minmag');
+  const inp = document.getElementById('quake-search');
+  const btn = document.getElementById('quake-reset');
+  function apply() {
+    renderQuakes();
+    renderMapMarkers();
+  }
+  if (sel) {
+    sel.addEventListener('change', function () {
+      state.quakeFilter.minMag = Number(sel.value) || 0;
+      apply();
+    });
+  }
+  if (inp) {
+    inp.addEventListener('input', function () {
+      state.quakeFilter.query = inp.value;
+      apply();
+    });
+  }
+  if (btn) {
+    btn.addEventListener('click', function () {
+      state.quakeFilter.minMag = 0;
+      state.quakeFilter.query = '';
+      if (sel) sel.value = '0';
+      if (inp) inp.value = '';
+      apply();
+    });
+  }
+}
+
 function poll(fn, ms) {
   fn(); // immediate first load
   setInterval(function () {
@@ -432,6 +596,7 @@ function init() {
   initMap();
   startClock();
   initTabs();
+  initQuakeControls();
   renderNews();
   renderQuakes();
   renderOverview();

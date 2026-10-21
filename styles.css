@@ -158,6 +158,47 @@ main {
 .chip.stale { color: var(--warn); border-color: var(--warn); }
 .chip.error { color: var(--err); border-color: var(--err); }
 .ov-updated { font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; }
+/* ---- Earthquake Intelligence (V2.2) ---- */
+.quake-controls { display: flex; flex-wrap: wrap; gap: 8px; align-items: flex-end; margin-bottom: 10px; }
+.qc-field { display: flex; flex-direction: column; gap: 4px; }
+.qc-grow { flex: 1 1 140px; }
+.qc-label { font-size: 10px; font-weight: 700; letter-spacing: 1px; color: var(--muted); }
+.quake-controls select,
+.quake-controls input {
+  background: #0d1420;
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: 6px;
+  padding: 8px;
+  font-size: 13px;
+  min-height: 38px;
+}
+.quake-controls input { width: 100%; }
+#quake-reset {
+  padding: 8px 14px;
+  min-height: 38px;
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--muted);
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 700;
+  font-size: 12px;
+  letter-spacing: 1px;
+}
+#quake-reset:hover { color: var(--accent); border-color: var(--accent); }
+.quake-result-count { font-size: 12px; font-weight: 700; color: var(--accent); margin-bottom: 8px; }
+.quake-item { cursor: pointer; }
+.quake-item.selected { background: #0d1420; outline: 1px solid var(--accent); border-radius: 6px; }
+.quake-detail { margin-top: 10px; border-top: 1px solid var(--border); padding-top: 10px; display: flex; flex-direction: column; gap: 6px; }
+.quake-detail[hidden] { display: none; }
+.qd-head { display: flex; gap: 10px; align-items: center; }
+.qd-place { font-size: 13px; font-weight: 700; }
+.qd-row { display: flex; gap: 10px; font-size: 12px; }
+.qd-key { color: var(--muted); min-width: 84px; font-weight: 700; }
+.qd-val { color: var(--text); }
+.qd-link { color: var(--accent); font-size: 12px; font-weight: 700; text-decoration: none; margin-top: 2px; }
+.qd-link:hover { text-decoration: underline; }
 footer {
   padding: 12px 20px;
   border-top: 1px solid var(--border);
@@ -171,4 +212,6 @@ footer {
   header { flex-wrap: wrap; row-gap: 6px; }
   .overview-grid { grid-template-columns: repeat(2, 1fr); }
   .overview-sources { flex-direction: column; gap: 8px; }
+  .quake-controls { flex-direction: column; align-items: stretch; }
+  .quake-controls select, .quake-controls input, #quake-reset { width: 100%; }
 }
